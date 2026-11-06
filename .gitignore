@@ -50,3 +50,6 @@ app.*.map.json
 # Firebase
 *-debug.log
 .firebase/
+
+# Local download bundle
+*.zip
