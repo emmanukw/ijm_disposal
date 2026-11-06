@@ -57,75 +57,88 @@ const _personHeaders = [
 String _opt(DateTime? d) => d == null ? '' : _dateFmt.format(d);
 
 List<List<Object>> _bidRows(List<Bid> bids, Map<String, BidStatus> st) => [
-      for (var i = 0; i < bids.length; i++)
-        () {
-          final b = bids[i];
-          final s = st[b.id] ?? BidStatus.none;
-          return <Object>[
-            i + 1,
-            b.bidderName,
-            b.email,
-            b.itemName,
-            b.quantity,
-            b.unitPrice,
-            b.total,
-            _fmt(b.createdAt),
-            s.paid ? 'Yes' : 'No',
-            _opt(s.paidAt),
-            s.collected ? 'Yes' : 'No',
-            _opt(s.collectedAt),
-            s.note,
-          ];
-        }(),
-    ];
+  for (var i = 0; i < bids.length; i++)
+    () {
+      final b = bids[i];
+      final s = st[b.id] ?? BidStatus.none;
+      return <Object>[
+        i + 1,
+        b.bidderName,
+        b.email,
+        b.itemName,
+        b.quantity,
+        b.unitPrice,
+        b.total,
+        _fmt(b.createdAt),
+        s.paid ? 'Yes' : 'No',
+        _opt(s.paidAt),
+        s.collected ? 'Yes' : 'No',
+        _opt(s.collectedAt),
+        s.note,
+      ];
+    }(),
+];
 
 List<List<Object>> _itemRows(
-        List<Item> items, List<Bid> bids, Map<String, BidStatus> st) =>
+  List<Item> items,
+  List<Bid> bids,
+  Map<String, BidStatus> st,
+) => [
+  for (final it in items)
     [
-      for (final it in items)
-        [
-          it.name,
-          it.description,
-          it.quantity,
-          it.booked,
-          it.remaining,
-          it.price,
-          it.price * it.booked,
-          bids
-              .where((b) => b.itemId == it.id && (st[b.id]?.paid ?? false))
-              .fold<num>(0, (a, b) => a + b.total),
-          it.soldOut ? 'Finished' : 'Available',
-        ],
-    ];
+      it.name,
+      it.description,
+      it.quantity,
+      it.booked,
+      it.remaining,
+      it.price,
+      it.price * it.booked,
+      bids
+          .where((b) => b.itemId == it.id && (st[b.id]?.paid ?? false))
+          .fold<num>(0, (a, b) => a + b.total),
+      it.soldOut ? 'Finished' : 'Available',
+    ],
+];
 
 /// One row per person (grouped by email, or by name for older bids).
 List<List<Object>> _personRows(List<Bid> bids, Map<String, BidStatus> st) {
   final groups = <String, List<Bid>>{};
   for (final b in bids) {
-    final key = b.email.isNotEmpty ? b.email.toLowerCase() : b.bidderName.toLowerCase();
+    final key = b.email.isNotEmpty
+        ? b.email.toLowerCase()
+        : b.bidderName.toLowerCase();
     groups.putIfAbsent(key, () => []).add(b);
   }
-  final rows = groups.values.map((list) {
-    final amount = list.fold<num>(0, (a, b) => a + b.total);
-    final paid = list
-        .where((b) => st[b.id]?.paid ?? false)
-        .fold<num>(0, (a, b) => a + b.total);
-    final collected = list.where((b) => st[b.id]?.collected ?? false).toList();
-    final notCollected = list.where((b) => !(st[b.id]?.collected ?? false)).toList();
-    String names(List<Bid> l) => l.map((b) => '${b.quantity} × ${b.itemName}').join('; ');
-    return <Object>[
-      list.last.bidderName,
-      list.first.email,
-      list.length,
-      list.fold<int>(0, (a, b) => a + b.quantity),
-      amount,
-      paid,
-      amount - paid,
-      names(collected),
-      names(notCollected),
-    ];
-  }).toList()
-    ..sort((a, b) => (a[0] as String).toLowerCase().compareTo((b[0] as String).toLowerCase()));
+  final rows =
+      groups.values.map((list) {
+        final amount = list.fold<num>(0, (a, b) => a + b.total);
+        final paid = list
+            .where((b) => st[b.id]?.paid ?? false)
+            .fold<num>(0, (a, b) => a + b.total);
+        final collected = list
+            .where((b) => st[b.id]?.collected ?? false)
+            .toList();
+        final notCollected = list
+            .where((b) => !(st[b.id]?.collected ?? false))
+            .toList();
+        String names(List<Bid> l) =>
+            l.map((b) => '${b.quantity} × ${b.itemName}').join('; ');
+        return <Object>[
+          list.last.bidderName,
+          list.first.email,
+          list.length,
+          list.fold<int>(0, (a, b) => a + b.quantity),
+          amount,
+          paid,
+          amount - paid,
+          names(collected),
+          names(notCollected),
+        ];
+      }).toList()..sort(
+        (a, b) => (a[0] as String).toLowerCase().compareTo(
+          (b[0] as String).toLowerCase(),
+        ),
+      );
   return rows;
 }
 
@@ -133,8 +146,8 @@ String _stamp() => DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
 
 /// CSV of every bid (opens cleanly in Excel thanks to the BOM).
 void downloadBidsCsv(List<Bid> bids, Map<String, BidStatus> statuses) {
-  final csv =
-      Csv(addBom: true).encode([_bidHeaders, ..._bidRows(bids, statuses)]);
+  final csv = Csv(addBom: true)
+      .encode([_bidHeaders, ..._bidRows(bids, statuses)]);
   _download(
     Uint8List.fromList(utf8.encode(csv)),
     'ijm_disposal_bids_${_stamp()}.csv',
@@ -144,7 +157,10 @@ void downloadBidsCsv(List<Bid> bids, Map<String, BidStatus> statuses) {
 
 /// Excel workbook with sheets "Bids", "Items Summary" and "By Person".
 void downloadExcelReport(
-    List<Bid> bids, List<Item> items, Map<String, BidStatus> statuses) {
+  List<Bid> bids,
+  List<Item> items,
+  Map<String, BidStatus> statuses,
+) {
   final excel = Excel.createExcel();
   final defaultSheet = excel.getDefaultSheet()!;
   excel.rename(defaultSheet, 'Bids');
@@ -154,16 +170,19 @@ void downloadExcelReport(
     sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
     for (var c = 0; c < headers.length; c++) {
       sheet
-          .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0))
-          .cellStyle = bold;
+              .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0))
+              .cellStyle =
+          bold;
       sheet.setColumnWidth(c, 20);
     }
     for (final r in rows) {
-      sheet.appendRow(r.map<CellValue>((v) {
-        if (v is int) return IntCellValue(v);
-        if (v is num) return DoubleCellValue(v.toDouble());
-        return TextCellValue(v.toString());
-      }).toList());
+      sheet.appendRow(
+        r.map<CellValue>((v) {
+          if (v is int) return IntCellValue(v);
+          if (v is num) return DoubleCellValue(v.toDouble());
+          return TextCellValue(v.toString());
+        }).toList(),
+      );
     }
   }
 

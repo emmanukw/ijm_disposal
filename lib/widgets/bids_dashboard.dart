@@ -5,6 +5,7 @@ import '../models/bid.dart';
 import '../models/item.dart';
 import '../theme.dart';
 import 'item_image.dart';
+import 'live_bookings.dart';
 
 final _when = DateFormat('d MMM yyyy · HH:mm:ss');
 
@@ -198,81 +199,89 @@ class _ItemStatusCard extends StatelessWidget {
           : Column(
               children: [
                 for (final it in items) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                    child: Opacity(
-                      opacity: it.soldOut ? 0.55 : 1,
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: ItemImage(
-                              base64: it.imageBase64,
-                              width: 44,
-                              height: 44,
+                  InkWell(
+                    onTap: () => showItemBookings(context, it, bids),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      child: Opacity(
+                        opacity: it.soldOut ? 0.55 : 1,
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: ItemImage(
+                                base64: it.imageBase64,
+                                width: 44,
+                                height: 44,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        it.name,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          it.name,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    it.soldOut
-                                        ? const StatusPill(
-                                            'Finished',
-                                            Colors.grey,
-                                          )
-                                        : Text(
-                                            '${it.remaining} of ${it.quantity} left',
-                                            style: const TextStyle(
-                                              fontSize: 12.5,
-                                              color: Color(0xFF6B7A90),
+                                      it.soldOut
+                                          ? const StatusPill(
+                                              'Finished',
+                                              Colors.grey,
+                                            )
+                                          : Text(
+                                              '${it.remaining} of ${it.quantity} left',
+                                              style: const TextStyle(
+                                                fontSize: 12.5,
+                                                color: Color(0xFF6B7A90),
+                                              ),
                                             ),
-                                          ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: LinearProgressIndicator(
-                                    value: it.quantity == 0
-                                        ? 0
-                                        : it.booked / it.quantity,
-                                    minHeight: 5,
-                                    backgroundColor: const Color(0xFFEDF1F6),
-                                    color: it.soldOut
-                                        ? Colors.grey
-                                        : Brand.teal,
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _biddersFor(it),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF8593A6),
+                                  const SizedBox(height: 6),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: it.quantity == 0
+                                          ? 0
+                                          : it.booked / it.quantity,
+                                      minHeight: 5,
+                                      backgroundColor: const Color(0xFFEDF1F6),
+                                      color: it.soldOut
+                                          ? Colors.grey
+                                          : Brand.teal,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _biddersFor(it),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF8593A6),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.chevron_right,
+                              color: Color(0xFF8593A6),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -289,11 +298,10 @@ class _ItemStatusCard extends StatelessWidget {
   }
 
   String _biddersFor(Item it) {
-    final names = bids
-        .where((b) => b.itemId == it.id)
-        .map((b) => '${b.bidderName} (${b.quantity})')
-        .toList();
-    return names.isEmpty ? 'No bids yet' : names.join(' · ');
+    final names = bids.where((b) => b.itemId == it.id).toList();
+    if (names.isEmpty) return 'No bookings yet';
+    return '${names.length} booking${names.length == 1 ? '' : 's'} · '
+        'tap to see who and when';
   }
 }
 

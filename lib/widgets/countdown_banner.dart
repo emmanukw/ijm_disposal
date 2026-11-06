@@ -67,53 +67,69 @@ class _CountdownBannerState extends State<CountdownBanner> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          _PulseDot(color: dot, pulse: left != null),
-          const SizedBox(width: 8),
-          Text(label.toUpperCase(),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _PulseDot(color: dot, pulse: left != null),
+            const SizedBox(width: 8),
+            Text(
+              label.toUpperCase(),
               style: const TextStyle(
-                  color: Colors.white,
-                  letterSpacing: 1.4,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
-        ]),
+                color: Colors.white,
+                letterSpacing: 1.4,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         if (left != null)
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            _unit(left.inDays, 'days'),
-            _unit(left.inHours % 24, 'hours'),
-            _unit(left.inMinutes % 60, 'mins'),
-            _unit(left.inSeconds % 60, 'secs'),
-          ]),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _unit(left.inDays, 'days'),
+              _unit(left.inHours % 24, 'hours'),
+              _unit(left.inMinutes % 60, 'mins'),
+              _unit(left.inSeconds % 60, 'secs'),
+            ],
+          ),
         if (footer != null) ...[
           const SizedBox(height: 12),
-          Text(footer,
-              style: const TextStyle(color: Colors.white70, fontSize: 13)),
+          Text(
+            footer,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
         ],
       ],
     );
   }
 
   Widget _unit(int v, String name) => Container(
-        width: 68,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+    width: 68,
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+    ),
+    child: Column(
+      children: [
+        Text(
+          v.toString().padLeft(2, '0'),
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontSize: 28,
+            height: 1.1,
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         ),
-        child: Column(children: [
-          Text(v.toString().padLeft(2, '0'),
-              style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 28,
-                  height: 1.1,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: const [FontFeature.tabularFigures()])),
-          Text(name,
-              style: const TextStyle(color: Colors.white70, fontSize: 12)),
-        ]),
-      );
+        Text(name, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+      ],
+    ),
+  );
 }
 
 class _PulseDot extends StatefulWidget {
@@ -127,8 +143,9 @@ class _PulseDot extends StatefulWidget {
 class _PulseDotState extends State<_PulseDot>
     with SingleTickerProviderStateMixin {
   late final _c = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1200))
-    ..repeat(reverse: true);
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat(reverse: true);
 
   @override
   void dispose() {
@@ -138,14 +155,13 @@ class _PulseDotState extends State<_PulseDot>
 
   @override
   Widget build(BuildContext context) => FadeTransition(
-        opacity: widget.pulse
-            ? Tween(begin: 0.35, end: 1.0).animate(_c)
-            : const AlwaysStoppedAnimation(1),
-        child: Container(
-          width: 10,
-          height: 10,
-          decoration:
-              BoxDecoration(color: widget.color, shape: BoxShape.circle),
-        ),
-      );
+    opacity: widget.pulse
+        ? Tween(begin: 0.35, end: 1.0).animate(_c)
+        : const AlwaysStoppedAnimation(1),
+    child: Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+    ),
+  );
 }

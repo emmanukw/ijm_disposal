@@ -23,8 +23,11 @@ class ItemImage extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
         ),
-        child: const Icon(Icons.inventory_2_outlined,
-            size: 40, color: Color(0xFF8DA2BD)),
+        child: const Icon(
+          Icons.inventory_2_outlined,
+          size: 40,
+          color: Color(0xFF8DA2BD),
+        ),
       );
     }
     return Image.memory(

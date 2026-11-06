@@ -11,4 +11,5 @@ const appTitle = 'IJM Kenya Items Disposal';
 const allowedEmailDomain = 'ijm.org';
 
 bool isAllowedEmail(String? email) =>
-    email != null && email.trim().toLowerCase().endsWith('@$allowedEmailDomain');
+    email != null &&
+    email.trim().toLowerCase().endsWith('@$allowedEmailDomain');

@@ -26,10 +26,18 @@ Future<void> main() async {
   runApp(const DisposalApp());
 }
 
-final _router = GoRouter(routes: [
-  GoRoute(path: '/', builder: (_, _) => const StaffGate(child: HomePage())),
-  GoRoute(path: '/admin', builder: (_, _) => const StaffGate(child: AdminPage())),
-]);
+final _router = GoRouter(
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (_, _) => const StaffGate(child: HomePage()),
+    ),
+    GoRoute(
+      path: '/admin',
+      builder: (_, _) => const StaffGate(child: AdminPage()),
+    ),
+  ],
+);
 
 /// Shows [child] only to verified @ijm.org staff (or admins); otherwise the
 /// sign-in, verify-email or "staff only" screen.
@@ -39,18 +47,18 @@ class StaffGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-        listenable: SessionController.instance,
-        builder: (context, _) {
-          final s = SessionController.instance.value;
-          if (s.loading) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
-          }
-          if (!s.signedIn) return const LoginPage();
-          if (s.canUseSite) return child;
-          if (!s.allowedDomain) return NotAllowedPage(user: s.user!);
-          return VerifyEmailPage(user: s.user!);
-        },
-      );
+    listenable: SessionController.instance,
+    builder: (context, _) {
+      final s = SessionController.instance.value;
+      if (s.loading) {
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
+      if (!s.signedIn) return const LoginPage();
+      if (s.canUseSite) return child;
+      if (!s.allowedDomain) return NotAllowedPage(user: s.user!);
+      return VerifyEmailPage(user: s.user!);
+    },
+  );
 }
 
 class DisposalApp extends StatelessWidget {

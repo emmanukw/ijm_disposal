@@ -19,10 +19,10 @@ class BidStatus {
   static const none = BidStatus();
 
   factory BidStatus.fromMap(Map<String, dynamic> d) => BidStatus(
-        paid: (d['paid'] ?? false) as bool,
-        paidAt: (d['paidAt'] as Timestamp?)?.toDate(),
-        collected: (d['collected'] ?? false) as bool,
-        collectedAt: (d['collectedAt'] as Timestamp?)?.toDate(),
-        note: (d['note'] ?? '') as String,
-      );
+    paid: (d['paid'] ?? false) as bool,
+    paidAt: (d['paidAt'] as Timestamp?)?.toDate(),
+    collected: (d['collected'] ?? false) as bool,
+    collectedAt: (d['collectedAt'] as Timestamp?)?.toDate(),
+    note: (d['note'] ?? '') as String,
+  );
 }

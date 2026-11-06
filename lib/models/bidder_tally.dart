@@ -19,8 +19,9 @@ class BidderTally {
     return BidderTally(
       name: (d['name'] ?? '') as String,
       total: (d['total'] ?? 0) as int,
-      items: ((d['items'] ?? const {}) as Map)
-          .map((k, v) => MapEntry(k as String, (v as num).toInt())),
+      items: ((d['items'] ?? const {}) as Map).map(
+        (k, v) => MapEntry(k as String, (v as num).toInt()),
+      ),
     );
   }
 }

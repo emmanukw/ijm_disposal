@@ -13,10 +13,13 @@ import 'item_card.dart' show money;
 /// Asks the bidder for their name and quantity, then books the item.
 /// Returns true when the booking succeeded.
 Future<bool?> showBidDialog(
-        BuildContext context, Item item, AuctionSettings settings) =>
-    showDialog<bool>(
-        context: context,
-        builder: (_) => _BidDialog(item: item, settings: settings));
+  BuildContext context,
+  Item item,
+  AuctionSettings settings,
+) => showDialog<bool>(
+  context: context,
+  builder: (_) => _BidDialog(item: item, settings: settings),
+);
 
 class _BidDialog extends StatefulWidget {
   final Item item;
@@ -33,9 +36,10 @@ class _BidDialogState extends State<_BidDialog> {
 
   final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(
-      text: _lastName.isNotEmpty
-          ? _lastName
-          : (FirebaseAuth.instance.currentUser?.displayName ?? ''));
+    text: _lastName.isNotEmpty
+        ? _lastName
+        : (FirebaseAuth.instance.currentUser?.displayName ?? ''),
+  );
   late final Stream<BidderTally> _tally = Repository.instance.myTally();
   int _qty = 1;
   bool _busy = false;
@@ -85,10 +89,10 @@ class _BidDialogState extends State<_BidDialog> {
 
   @override
   Widget build(BuildContext context) => StreamBuilder<BidderTally>(
-        stream: _tally,
-        builder: (context, snap) =>
-            _build(context, snap.data ?? BidderTally.empty, snap.hasData),
-      );
+    stream: _tally,
+    builder: (context, snap) =>
+        _build(context, snap.data ?? BidderTally.empty, snap.hasData),
+  );
 
   Widget _build(BuildContext context, BidderTally tally, bool loaded) {
     final item = widget.item;
@@ -98,25 +102,37 @@ class _BidDialogState extends State<_BidDialog> {
     final s = widget.settings;
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-      title: Row(children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: ItemImage(base64: item.imageBase64, width: 64, height: 64),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Book item',
-                style: TextStyle(fontSize: 13, color: Color(0xFF6B7A90))),
-            Text(item.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            StatusPill('$currency ${money.format(item.price)} per piece', Brand.blue),
-          ]),
-        ),
-      ]),
+      title: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: ItemImage(base64: item.imageBase64, width: 64, height: 64),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Book item',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF6B7A90)),
+                ),
+                Text(
+                  item.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 4),
+                StatusPill(
+                  '$currency ${money.format(item.price)} per piece',
+                  Brand.blue,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       content: Form(
         key: _form,
         child: SizedBox(
@@ -139,43 +155,52 @@ class _BidDialogState extends State<_BidDialog> {
                 onFieldSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 16),
-              Row(children: [
-                const Text('Quantity'),
-                const Spacer(),
-                IconButton.outlined(
-                  onPressed: _qty > 1 ? () => setState(() => _qty--) : null,
-                  icon: const Icon(Icons.remove),
-                ),
-                SizedBox(
-                  width: 44,
-                  child: Text('$_qty',
+              Row(
+                children: [
+                  const Text('Quantity'),
+                  const Spacer(),
+                  IconButton.outlined(
+                    onPressed: _qty > 1 ? () => setState(() => _qty--) : null,
+                    icon: const Icon(Icons.remove),
+                  ),
+                  SizedBox(
+                    width: 44,
+                    child: Text(
+                      '$_qty',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleLarge),
-                ),
-                IconButton.outlined(
-                  onPressed: _qty < max ? () => setState(() => _qty++) : null,
-                  icon: const Icon(Icons.add),
-                ),
-              ]),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton.outlined(
+                    onPressed: _qty < max ? () => setState(() => _qty++) : null,
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
+              ),
               Text(
-                  blocked
-                      ? 'You can’t book more of this item'
-                      : '$max you can book (${item.remaining} in stock)',
-                  style: Theme.of(context).textTheme.bodySmall),
+                blocked
+                    ? 'You can’t book more of this item'
+                    : '$max you can book (${item.remaining} in stock)',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
               if (s.hasLimits) ...[
                 const SizedBox(height: 10),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: (blocked ? Brand.red : Brand.amber).withValues(alpha: 0.1),
+                    color: (blocked ? Brand.red : Brand.amber).withValues(
+                      alpha: 0.1,
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(s.limitsText,
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text(
+                        s.limitsText,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         [
@@ -197,21 +222,28 @@ class _BidDialogState extends State<_BidDialog> {
                   color: Brand.blue.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Row(children: [
-                  const Text('Total'),
-                  const Spacer(),
-                  Text('$currency ${money.format(item.price * _qty)}',
-                      style: Theme.of(context).textTheme.titleLarge),
-                ]),
+                child: Row(
+                  children: [
+                    const Text('Total'),
+                    const Spacer(),
+                    Text(
+                      '$currency ${money.format(item.price * _qty)}',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               const Text(
-                  'Your name and booking time will be visible to all staff.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF8593A6))),
+                'Your name and booking time will be visible to all staff.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF8593A6)),
+              ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ],
             ],
           ),
@@ -219,13 +251,17 @@ class _BidDialogState extends State<_BidDialog> {
       ),
       actions: [
         TextButton(
-            onPressed: _busy ? null : () => Navigator.pop(context, false),
-            child: const Text('Cancel')),
+          onPressed: _busy ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
         FilledButton.icon(
           onPressed: (_busy || blocked) ? null : _submit,
           icon: _busy
               ? const SizedBox(
-                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Icon(Icons.check),
           label: const Text('Confirm booking'),
         ),

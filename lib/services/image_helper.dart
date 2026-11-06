@@ -12,7 +12,11 @@ Future<String?> pickThumbnailBase64({int maxSide = 480}) async {
   final decoded = img.decodeImage(bytes);
   if (decoded == null) throw const FormatException('Unsupported image file.');
   final resized = decoded.width >= decoded.height
-      ? (decoded.width > maxSide ? img.copyResize(decoded, width: maxSide) : decoded)
-      : (decoded.height > maxSide ? img.copyResize(decoded, height: maxSide) : decoded);
+      ? (decoded.width > maxSide
+            ? img.copyResize(decoded, width: maxSide)
+            : decoded)
+      : (decoded.height > maxSide
+            ? img.copyResize(decoded, height: maxSide)
+            : decoded);
   return base64Encode(img.encodeJpg(resized, quality: 72));
 }

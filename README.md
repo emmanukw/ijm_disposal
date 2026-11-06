@@ -10,7 +10,9 @@ A Flutter web app backed by Firebase (Firestore and Auth) for booking items that
 - To book, staff confirm their name and choose a quantity. A Firestore transaction makes sure two people can never book the last piece.
 - **Per-person booking limits** (set by the admin): a maximum per item and/or a maximum in total. The booking dialog shows how many more a person may book.
 - When the quantity reaches 0, the item is greyed out and marked **FINISHED**.
-- **Live bids** dashboard: totals, status per item (who booked) and a live feed of every bid with its date and time.
+- **Live bookings panel** on the main page: every booking (name, item, quantity, exact date and time), newest first, in its own scrollable box. New bookings appear instantly and are briefly highlighted. Read-only for staff.
+- **View bookings** on each item card: the full list of who booked that item, how many and when.
+- **Live bids** dashboard: totals, status per item (tap an item to see its bookings) and a live feed of every bid.
 
 **Admin (`/admin`)**
 - Add, edit and delete items. Photos are shrunk in the browser to small JPEG thumbnails.

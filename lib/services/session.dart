@@ -19,7 +19,8 @@ class Session {
   bool get allowedDomain => isAllowedEmail(user?.email);
 
   /// Verified @ijm.org staff, or an admin (admins are always allowed).
-  bool get canUseSite => isAdmin || (signedIn && emailVerified && allowedDomain);
+  bool get canUseSite =>
+      isAdmin || (signedIn && emailVerified && allowedDomain);
 }
 
 /// Keeps the current [Session] up to date (auth state + admin flag).
@@ -62,8 +63,11 @@ class SessionController extends ChangeNotifier {
         .doc(user.uid)
         .snapshots()
         .listen(
-          (d) => _set(Session(user: FirebaseAuth.instance.currentUser, isAdmin: d.exists)),
-          onError: (_) => _set(Session(user: FirebaseAuth.instance.currentUser)),
+          (d) => _set(
+            Session(user: FirebaseAuth.instance.currentUser, isAdmin: d.exists),
+          ),
+          onError: (_) =>
+              _set(Session(user: FirebaseAuth.instance.currentUser)),
         );
   }
 
