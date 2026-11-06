@@ -6,6 +6,8 @@ class Bid {
   final String itemId;
   final String itemName;
   final String bidderName;
+  final String email;
+  final String uid;
   final int quantity;
   final num unitPrice;
   final DateTime? createdAt;
@@ -15,6 +17,8 @@ class Bid {
     required this.itemId,
     required this.itemName,
     required this.bidderName,
+    this.email = '',
+    this.uid = '',
     required this.quantity,
     required this.unitPrice,
     required this.createdAt,
@@ -29,6 +33,8 @@ class Bid {
       itemId: (d['itemId'] ?? '') as String,
       itemName: (d['itemName'] ?? '') as String,
       bidderName: (d['bidderName'] ?? '') as String,
+      email: (d['email'] ?? '') as String,
+      uid: (d['uid'] ?? '') as String,
       quantity: (d['quantity'] ?? 0) as int,
       unitPrice: (d['unitPrice'] ?? 0) as num,
       // serverTimestamp is null locally until the server confirms the write.

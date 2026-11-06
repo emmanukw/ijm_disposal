@@ -1,6 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../config.dart';
+import '../models/auction_settings.dart';
+import '../models/bidder_tally.dart';
 import '../models/item.dart';
 import '../services/repository.dart';
 import '../theme.dart';
@@ -9,12 +12,16 @@ import 'item_card.dart' show money;
 
 /// Asks the bidder for their name and quantity, then books the item.
 /// Returns true when the booking succeeded.
-Future<bool?> showBidDialog(BuildContext context, Item item) =>
-    showDialog<bool>(context: context, builder: (_) => _BidDialog(item: item));
+Future<bool?> showBidDialog(
+        BuildContext context, Item item, AuctionSettings settings) =>
+    showDialog<bool>(
+        context: context,
+        builder: (_) => _BidDialog(item: item, settings: settings));
 
 class _BidDialog extends StatefulWidget {
   final Item item;
-  const _BidDialog({required this.item});
+  final AuctionSettings settings;
+  const _BidDialog({required this.item, required this.settings});
 
   @override
   State<_BidDialog> createState() => _BidDialogState();
@@ -25,10 +32,27 @@ class _BidDialogState extends State<_BidDialog> {
   static String _lastName = '';
 
   final _form = GlobalKey<FormState>();
-  late final _name = TextEditingController(text: _lastName);
+  late final _name = TextEditingController(
+      text: _lastName.isNotEmpty
+          ? _lastName
+          : (FirebaseAuth.instance.currentUser?.displayName ?? ''));
+  late final Stream<BidderTally> _tally = Repository.instance.myTally();
   int _qty = 1;
   bool _busy = false;
   String? _error;
+
+  /// Most this person may book of this item right now (stock + limits).
+  int _maxFor(BidderTally t) {
+    final s = widget.settings;
+    var m = widget.item.remaining;
+    if (s.maxPerItemPerPerson > 0) {
+      m = m.clamp(0, s.maxPerItemPerPerson - t.forItem(widget.item.id));
+    }
+    if (s.maxTotalPerPerson > 0) {
+      m = m.clamp(0, s.maxTotalPerPerson - t.total);
+    }
+    return m < 0 ? 0 : m;
+  }
 
   @override
   void dispose() {
@@ -60,9 +84,18 @@ class _BidDialogState extends State<_BidDialog> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => StreamBuilder<BidderTally>(
+        stream: _tally,
+        builder: (context, snap) =>
+            _build(context, snap.data ?? BidderTally.empty, snap.hasData),
+      );
+
+  Widget _build(BuildContext context, BidderTally tally, bool loaded) {
     final item = widget.item;
-    final max = item.remaining;
+    final max = _maxFor(tally);
+    if (_qty > max && max > 0) _qty = max;
+    final blocked = loaded && max == 0;
+    final s = widget.settings;
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
       title: Row(children: [
@@ -124,8 +157,39 @@ class _BidDialogState extends State<_BidDialog> {
                   icon: const Icon(Icons.add),
                 ),
               ]),
-              Text('$max available',
+              Text(
+                  blocked
+                      ? 'You can’t book more of this item'
+                      : '$max you can book (${item.remaining} in stock)',
                   style: Theme.of(context).textTheme.bodySmall),
+              if (s.hasLimits) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: (blocked ? Brand.red : Brand.amber).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.limitsText,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(
+                        [
+                          if (s.maxPerItemPerPerson > 0)
+                            'You have ${tally.forItem(item.id)} of this item',
+                          if (s.maxTotalPerPerson > 0)
+                            '${tally.total} booked in total',
+                        ].join(' · '),
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(14),
@@ -142,7 +206,7 @@ class _BidDialogState extends State<_BidDialog> {
               ),
               const SizedBox(height: 8),
               const Text(
-                  'Your name and booking time will be visible to all bidders.',
+                  'Your name and booking time will be visible to all staff.',
                   style: TextStyle(fontSize: 12, color: Color(0xFF8593A6))),
               if (_error != null) ...[
                 const SizedBox(height: 12),
@@ -158,7 +222,7 @@ class _BidDialogState extends State<_BidDialog> {
             onPressed: _busy ? null : () => Navigator.pop(context, false),
             child: const Text('Cancel')),
         FilledButton.icon(
-          onPressed: _busy ? null : _submit,
+          onPressed: (_busy || blocked) ? null : _submit,
           icon: _busy
               ? const SizedBox(
                   width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))

@@ -6,181 +6,73 @@ import 'package:intl/intl.dart';
 import '../config.dart';
 import '../models/auction_settings.dart';
 import '../models/bid.dart';
+import '../models/bid_status.dart';
 import '../models/item.dart';
 import '../services/report_service.dart';
 import '../services/repository.dart';
+import '../services/session.dart';
 import 'home_page.dart' show LogoMark;
+import 'login_page.dart' show AuthBackground;
 import '../theme.dart';
+import '../widgets/admin_bids.dart';
 import '../widgets/bids_dashboard.dart';
 import '../widgets/item_card.dart' show money;
 import '../widgets/item_form_dialog.dart';
 import '../widgets/item_image.dart';
 
-/// Admin area: login gate, then items / schedule / bids / reports.
-class AdminPage extends StatefulWidget {
+/// Admin area (the StaffGate in main.dart has already signed the user in).
+class AdminPage extends StatelessWidget {
   const AdminPage({super.key});
-  @override
-  State<AdminPage> createState() => _AdminPageState();
-}
-
-class _AdminPageState extends State<AdminPage> {
-  final repo = Repository.instance;
-  late final Stream<User?> _auth = repo.authChanges;
-  late final Stream<bool> _isAdmin = repo.isAdmin();
 
   @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: _auth,
-      builder: (context, userSnap) {
-        final user = userSnap.data;
-        if (user == null || user.isAnonymous) return const _LoginScreen();
-        return StreamBuilder<bool>(
-          stream: _isAdmin,
-          builder: (context, adminSnap) {
-            if (!adminSnap.hasData) {
-              return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()));
-            }
-            if (adminSnap.data != true) return _NotAdmin(user: user);
-            return const _AdminHome();
-          },
-        );
-      },
-    );
-  }
-}
-
-// ------------------------------------------------------------------ login
-
-class _LoginScreen extends StatefulWidget {
-  const _LoginScreen();
-  @override
-  State<_LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<_LoginScreen> {
-  final _email = TextEditingController();
-  final _pass = TextEditingController();
-  bool _busy = false;
-  String? _error;
-
-  Future<void> _login() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await Repository.instance.adminSignIn(_email.text.trim(), _pass.text);
-    } on FirebaseAuthException catch (e) {
-      setState(() => _error = switch (e.code) {
-            'invalid-email' => 'That email address looks wrong.',
-            'user-disabled' => 'This account has been disabled.',
-            'too-many-requests' => 'Too many attempts. Try again later.',
-            'network-request-failed' => 'Network error. Check your connection.',
-            _ => 'Incorrect email or password.',
-          });
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: Brand.heroGradient),
-        alignment: Alignment.center,
-        padding: const EdgeInsets.all(16),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: AutofillGroup(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const LogoMark(size: 52),
-                  const SizedBox(height: 16),
-                  Text('Admin sign in',
-                      style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 4),
-                  const Text('$orgName Disposal management',
-                      style: TextStyle(color: Color(0xFF6B7A90))),
-                  const SizedBox(height: 24),
-                  TextField(
-                    controller: _email,
-                    autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.mail_outline)),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _pass,
-                    obscureText: true,
-                    autofillHints: const [AutofillHints.password],
-                    decoration: const InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline)),
-                    onSubmitted: (_) => _login(),
-                  ),
-                  const SizedBox(height: 20),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(_error!,
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.error)),
-                    ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _busy ? null : _login,
-                      child: Text(_busy ? 'Signing in…' : 'Sign in'),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: () => context.go('/'),
-                    icon: const Icon(Icons.arrow_back, size: 18),
-                    label: const Text('Back to public site'),
-                  ),
-                ]),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: SessionController.instance,
+        builder: (context, _) {
+          final s = SessionController.instance.value;
+          return s.isAdmin ? const _AdminHome() : _NotAdmin(user: s.user!);
+        },
+      );
 }
 
 class _NotAdmin extends StatelessWidget {
   final User user;
   const _NotAdmin({required this.user});
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Not authorised')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text('${user.email} is not an admin.'),
-              const SizedBox(height: 8),
-              SelectableText(
-                  'To grant access, create a Firestore document at\nadmins/${user.uid}',
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () async {
-                  await Repository.instance.signOut();
-                  if (context.mounted) context.go('/');
-                },
-                child: const Text('Sign out'),
-              ),
-            ]),
+  Widget build(BuildContext context) => AuthBackground(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.admin_panel_settings_outlined,
+              color: Brand.amber, size: 48),
+          const SizedBox(height: 12),
+          Text('Admins only', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text('${user.email} is not an admin.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFF6B7A90))),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: Brand.bg, borderRadius: BorderRadius.circular(12)),
+            child: SelectableText(
+              'To make this person an admin, create a Firestore document at\n'
+              'admins/${user.uid}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12.5),
+            ),
           ),
-        ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => context.go('/'),
+              child: const Text('Back to booking site'),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Repository.instance.signOut(),
+            child: const Text('Sign out'),
+          ),
+        ]),
       );
 }
 
@@ -196,12 +88,14 @@ class _AdminHomeState extends State<_AdminHome> {
   final repo = Repository.instance;
   late final Stream<List<Item>> _items = repo.items();
   late final Stream<List<Bid>> _bids = repo.bids();
+  late final Stream<Map<String, BidStatus>> _statuses = repo.bidStatuses();
   int _tab = 0;
 
   static const _dests = [
     (Icons.inventory_2_outlined, Icons.inventory_2, 'Items'),
-    (Icons.timer_outlined, Icons.timer, 'Schedule'),
-    (Icons.insights_outlined, Icons.insights, 'Bids'),
+    (Icons.tune_outlined, Icons.tune, 'Settings'),
+    (Icons.receipt_long_outlined, Icons.receipt_long, 'Bookings'),
+    (Icons.insights_outlined, Icons.insights, 'Live overview'),
     (Icons.download_outlined, Icons.download, 'Reports'),
   ];
 
@@ -216,21 +110,32 @@ class _AdminHomeState extends State<_AdminHome> {
           stream: _bids,
           builder: (context, bidsSnap) {
             final bids = bidsSnap.data ?? const <Bid>[];
-            return switch (_tab) {
-              0 => _ItemsAdmin(items: items),
-              1 => const _ScheduleAdmin(),
-              2 => _Padded(
-                  title: 'Bids',
-                  subtitle: 'Live view of every booking. Cancelling a bid '
-                      'returns its pieces to stock.',
-                  child: BidsDashboard(
-                    items: items,
-                    bids: bids,
-                    onDeleteBid: (b) => _confirmDeleteBid(context, b),
-                  ),
-                ),
-              _ => _ReportsAdmin(items: items, bids: bids),
-            };
+            return StreamBuilder<Map<String, BidStatus>>(
+              stream: _statuses,
+              builder: (context, stSnap) {
+                final statuses = stSnap.data ?? const <String, BidStatus>{};
+                return switch (_tab) {
+                  0 => _ItemsAdmin(items: items),
+                  1 => const _ScheduleAdmin(),
+                  2 => _Padded(
+                      title: 'Bookings',
+                      subtitle: 'Track payment and collection for every booking. '
+                          'Only admins can see this page.',
+                      child: AdminBidsView(
+                        bids: bids,
+                        statuses: statuses,
+                        onDelete: (b) => _confirmDeleteBid(context, b),
+                      ),
+                    ),
+                  3 => _Padded(
+                      title: 'Live overview',
+                      subtitle: 'The same live dashboard staff see on the booking site.',
+                      child: BidsDashboard(items: items, bids: bids),
+                    ),
+                  _ => _ReportsAdmin(items: items, bids: bids, statuses: statuses),
+                };
+              },
+            );
           },
         );
       },
@@ -239,25 +144,44 @@ class _AdminHomeState extends State<_AdminHome> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 20,
-        title: const Row(children: [
-          LogoMark(),
-          SizedBox(width: 12),
-          Text('$orgName Disposal · Admin'),
+        title: Row(children: [
+          const LogoMark(),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(wide ? '$orgName Disposal · Admin' : 'Admin',
+                overflow: TextOverflow.ellipsis),
+          ),
         ]),
         actions: [
-          TextButton.icon(
-            onPressed: () => context.go('/'),
-            icon: const Icon(Icons.public, size: 18),
-            label: const Text('Public site'),
-          ),
-          TextButton.icon(
-            onPressed: () async {
-              await repo.signOut();
-              if (context.mounted) context.go('/');
-            },
-            icon: const Icon(Icons.logout, size: 18),
-            label: const Text('Sign out'),
-          ),
+          if (wide) ...[
+            TextButton.icon(
+              onPressed: () => context.go('/'),
+              icon: const Icon(Icons.public, size: 18),
+              label: const Text('Booking site'),
+            ),
+            TextButton.icon(
+              onPressed: () async {
+                await repo.signOut();
+                if (context.mounted) context.go('/');
+              },
+              icon: const Icon(Icons.logout, size: 18),
+              label: const Text('Sign out'),
+            ),
+          ] else ...[
+            IconButton(
+              tooltip: 'Booking site',
+              onPressed: () => context.go('/'),
+              icon: const Icon(Icons.public),
+            ),
+            IconButton(
+              tooltip: 'Sign out',
+              onPressed: () async {
+                await repo.signOut();
+                if (context.mounted) context.go('/');
+              },
+              icon: const Icon(Icons.logout),
+            ),
+          ],
           const SizedBox(width: 12),
         ],
         bottom: const PreferredSize(
@@ -302,7 +226,8 @@ class _AdminHomeState extends State<_AdminHome> {
   Future<void> _confirmDeleteBid(BuildContext context, Bid b) async {
     final ok = await _confirm(context, 'Cancel bid?',
         'Cancel ${b.bidderName}\'s booking of ${b.quantity} × ${b.itemName}? '
-        'The pieces will be returned to stock.');
+        'The pieces return to stock, the person\'s booking allowance is freed, '
+        'and any paid/collected record for it is removed.');
     if (ok) await Repository.instance.deleteBid(b);
   }
 }
@@ -462,6 +387,8 @@ class _ScheduleAdmin extends StatefulWidget {
 
 class _ScheduleAdminState extends State<_ScheduleAdmin> {
   final _title = TextEditingController();
+  final _maxItem = TextEditingController();
+  final _maxTotal = TextEditingController();
   DateTime? _start;
   DateTime? _end;
   bool _loaded = false;
@@ -477,6 +404,8 @@ class _ScheduleAdminState extends State<_ScheduleAdmin> {
         _title.text = s.title;
         _start = s.startsAt;
         _end = s.endsAt;
+        _maxItem.text = s.maxPerItemPerPerson > 0 ? '${s.maxPerItemPerPerson}' : '';
+        _maxTotal.text = s.maxTotalPerPerson > 0 ? '${s.maxTotalPerPerson}' : '';
         _loaded = true;
       });
     });
@@ -502,6 +431,17 @@ class _ScheduleAdminState extends State<_ScheduleAdmin> {
     if (_start != null && !_start!.isBefore(_end!)) {
       return _snack('Opening time must be before closing time.');
     }
+    int? parse(TextEditingController c) {
+      final t = c.text.trim();
+      if (t.isEmpty) return 0;
+      final n = int.tryParse(t);
+      return (n == null || n < 0) ? null : n;
+    }
+
+    final maxItem = parse(_maxItem), maxTotal = parse(_maxTotal);
+    if (maxItem == null || maxTotal == null) {
+      return _snack('Limits must be whole numbers (leave blank for no limit).');
+    }
     setState(() => _busy = true);
     try {
       await Repository.instance.saveSettings(AuctionSettings(
@@ -509,8 +449,10 @@ class _ScheduleAdminState extends State<_ScheduleAdmin> {
               ? AuctionSettings.empty.title
               : _title.text.trim(),
           startsAt: _start,
-          endsAt: _end));
-      _snack('Schedule saved.');
+          endsAt: _end,
+          maxPerItemPerPerson: maxItem,
+          maxTotalPerPerson: maxTotal));
+      _snack('Settings saved.');
     } catch (e) {
       _snack('Error: $e');
     } finally {
@@ -525,9 +467,9 @@ class _ScheduleAdminState extends State<_ScheduleAdmin> {
   Widget build(BuildContext context) {
     if (!_loaded) return const Center(child: CircularProgressIndicator());
     return _Padded(
-      title: 'Schedule',
-      subtitle: 'Controls the countdown shown to bidders. Booking is only '
-          'possible between these times.',
+      title: 'Settings',
+      subtitle: 'Schedule and booking rules. Booking is only possible between '
+          'the opening and closing times.',
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -573,11 +515,49 @@ class _ScheduleAdminState extends State<_ScheduleAdmin> {
                 child: const Text('Set'),
               ),
             ),
-            const SizedBox(height: 16),
+            const Divider(height: 32, color: Brand.border),
+            Text('Booking limits per person',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700, color: Brand.navy)),
+            const SizedBox(height: 4),
+            const Text(
+                'Leave blank for no limit. Limits apply to each staff account and '
+                'are enforced by the server. Cancelling a bid frees up the allowance.',
+                style: TextStyle(color: Color(0xFF6B7A90), fontSize: 13)),
+            const SizedBox(height: 14),
+            Wrap(spacing: 16, runSpacing: 12, children: [
+              SizedBox(
+                width: 260,
+                child: TextField(
+                  controller: _maxItem,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Max pieces of the same item',
+                    hintText: 'No limit',
+                    prefixIcon: Icon(Icons.filter_1_outlined),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 260,
+                child: TextField(
+                  controller: _maxTotal,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Max pieces in total',
+                    hintText: 'No limit',
+                    prefixIcon: Icon(Icons.functions),
+                  ),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: _busy ? null : _save,
               icon: const Icon(Icons.save_outlined),
-              label: const Text('Save schedule'),
+              label: const Text('Save settings'),
             ),
           ]),
         ),
@@ -591,7 +571,9 @@ class _ScheduleAdminState extends State<_ScheduleAdmin> {
 class _ReportsAdmin extends StatelessWidget {
   final List<Item> items;
   final List<Bid> bids;
-  const _ReportsAdmin({required this.items, required this.bids});
+  final Map<String, BidStatus> statuses;
+  const _ReportsAdmin(
+      {required this.items, required this.bids, required this.statuses});
 
   @override
   Widget build(BuildContext context) {
@@ -601,8 +583,8 @@ class _ReportsAdmin extends StatelessWidget {
     final pieces = bids.fold<int>(0, (a, b) => a + b.quantity);
     return _Padded(
       title: 'Reports',
-      subtitle: 'Export all bids with bidder names, quantities, amounts and '
-          'timestamps.',
+      subtitle: 'Export all bids with names, emails, quantities, amounts, '
+          'timestamps and payment/collection status.',
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Wrap(spacing: 12, runSpacing: 12, children: [
           StatCard('Bids', '${bids.length}', Icons.gavel_rounded, Brand.teal),
@@ -619,18 +601,19 @@ class _ReportsAdmin extends StatelessWidget {
             Text('Download report',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 6),
-            const Text('Excel includes two sheets: every bid, and a per-item '
-                'summary (booked, remaining, value).',
+            const Text('Excel has three sheets: every bid (with email, paid and '
+                'collected status), a per-item summary, and a per-person summary '
+                '(amount owed, paid, outstanding).',
                 style: TextStyle(color: Color(0xFF6B7A90))),
             const SizedBox(height: 20),
             Wrap(spacing: 12, runSpacing: 12, children: [
               FilledButton.icon(
-                onPressed: () => downloadExcelReport(ordered, items),
+                onPressed: () => downloadExcelReport(ordered, items, statuses),
                 icon: const Icon(Icons.table_chart_outlined),
                 label: const Text('Excel (.xlsx) — bids + item summary'),
               ),
               OutlinedButton.icon(
-                onPressed: () => downloadBidsCsv(ordered),
+                onPressed: () => downloadBidsCsv(ordered, statuses),
                 icon: const Icon(Icons.description_outlined),
                 label: const Text('CSV — all bids'),
               ),

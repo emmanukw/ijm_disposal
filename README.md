@@ -2,24 +2,28 @@
 
 A Flutter web app backed by Firebase (Firestore and Auth) for booking items that IJM is disposing of.
 
-**Bidders (public site `/`)**
+**Staff only.** Only people with a **verified @ijm.org email** can open the site. Staff create an account (name, @ijm.org email and password) and confirm it by clicking a link sent to their inbox. Admins listed in `admins` can sign in with any email.
+
+**Staff (booking site `/`)**
 - Live countdown to when booking opens or closes.
 - Item cards show a photo, price, total quantity, pieces remaining and a progress bar.
-- To book, bidders enter their name and choose a quantity. A Firestore transaction makes sure two people can never book the last piece.
+- To book, staff confirm their name and choose a quantity. A Firestore transaction makes sure two people can never book the last piece.
+- **Per-person booking limits** (set by the admin): a maximum per item and/or a maximum in total. The booking dialog shows how many more a person may book.
 - When the quantity reaches 0, the item is greyed out and marked **FINISHED**.
-- **Live bids** dashboard, visible to everyone: totals, status per item (who booked) and a live feed of every bid with its date and time.
+- **Live bids** dashboard: totals, status per item (who booked) and a live feed of every bid with its date and time.
 
 **Admin (`/admin`)**
 - Add, edit and delete items. Photos are shrunk in the browser to small JPEG thumbnails.
-- Set the event title and the opening and closing times, which drive the countdown.
-- See all bids. An admin can cancel a bid, which puts the pieces back in stock.
-- Download a report as **Excel** (sheets: Bids and Items Summary) or **CSV**.
+- **Settings:** the event title, the opening and closing times (which drive the countdown) and the **booking limits per person**.
+- **Bookings:** mark each booking **Paid** and/or **Collected**, add a note (e.g. an M-Pesa reference), search, and filter by Unpaid / Not collected / Collected. Totals show booked, paid and outstanding amounts. Only admins can see this page.
+- Cancel a booking: the pieces go back in stock and the person's allowance is freed.
+- Download a report as **Excel** (sheets: Bids, Items Summary and By Person) or **CSV**. Both include paid and collected status.
 
 ## One-time Firebase setup
 
 1. Create a project at <https://console.firebase.google.com>. The free **Spark** plan is enough, because no Cloud Storage bucket is used.
 2. **Build → Firestore Database → Create database** (production mode).
-3. **Build → Authentication → Sign-in method**: enable **Anonymous** (for bidders) and **Email/Password** (for admins).
+3. **Build → Authentication → Sign-in method**: enable **Email/Password**. Anonymous sign-in is not used; leave it disabled.
 4. Authentication → Users → **Add user** for each admin (email and password). Copy the user's **UID**.
 5. Firestore → start a collection `admins` → add a document whose **ID is that UID** (any field, e.g. `email: "..."`).
 6. Connect the app to the project:
@@ -30,7 +34,7 @@ A Flutter web app backed by Firebase (Firestore and Auth) for booking items that
    firebase use --add                         # pick your project
    ```
 7. Deploy the security rules: `firebase deploy --only firestore:rules`
-8. Sign in at `/admin` and open **Schedule** to set the closing time. Until a closing time is set, booking stays closed.
+8. Sign in at `/admin` and open **Settings** to set the closing time (and any booking limits). Until a closing time is set, booking stays closed.
 
 ## Run and deploy
 
@@ -44,7 +48,7 @@ firebase deploy --only hosting
 
 ```bash
 firebase emulators:start --only auth,firestore --project demo-ijm-disposal
-python3 tool/seed_emulator.py              # sample items/bids; admin = admin@ijm.org / admin123
+python3 tool/seed_emulator.py              # sample data; admin = admin@ijm.org / admin123, staff = staff@ijm.org / staff123
 # temporarily set projectId: 'demo-ijm-disposal' in lib/firebase_options.dart, then:
 flutter run -d chrome --dart-define=USE_EMULATOR=true
 ```
@@ -59,11 +63,29 @@ flutter run -d chrome --dart-define=USE_EMULATOR=true
 | `lib/services/report_service.dart` | CSV / Excel export |
 | `lib/pages/home_page.dart` | Public site |
 | `lib/pages/admin_page.dart` | Admin login, items, schedule, bids, reports |
-| `firestore.rules` | Security: only admins edit items/schedule; bidders can only create a valid bid and decrement stock by exactly that bid's quantity while booking is open |
+| `lib/pages/login_page.dart` | Staff sign in, registration, email verification, password reset |
+| `lib/widgets/admin_bids.dart` | Admin bookings page (paid / collected / notes) |
+| `firestore.rules` | Security: verified @ijm.org staff (or admins) only. Only admins edit items and settings or see payment status. Staff can only create a valid bid, decrement stock by exactly that quantity, and stay within the per-person limits while booking is open |
 
 ## Data model
 
-- `settings/auction` — `title`, `startsAt?`, `endsAt`
+- `settings/auction` — `title`, `startsAt?`, `endsAt`, `maxPerItemPerPerson`, `maxTotalPerPerson` (0 = no limit)
 - `items/{id}` — `name`, `description`, `imageBase64`, `quantity`, `remaining`, `price`, `createdAt`, `lastBidId`
-- `bids/{id}` — `itemId`, `itemName`, `bidderName`, `quantity`, `unitPrice`, `uid`, `createdAt` (server time)
+- `bids/{id}` — `itemId`, `itemName`, `bidderName`, `email`, `quantity`, `unitPrice`, `uid`, `createdAt` (server time)
+- `bidders/{uid}` — per-person running totals for limits: `name`, `email`, `total`, `items{itemId: count}`, `lastBidId`
+- `bidStatus/{bidId}` — admin only: `paid`, `paidAt`, `collected`, `collectedAt`, `note`, `updatedBy`
 - `admins/{uid}` — marks a user as admin (managed in the console only)
+
+## Changing the staff email domain
+
+Update `allowedEmailDomain` in `lib/config.dart` **and** `staffDomainRegex()` in `firestore.rules`, then redeploy both the rules and the hosting.
+
+## Security rules test
+
+With the emulators running and seeded (see above):
+
+```bash
+cd tool/rules_test && npm install && npm test
+```
+
+It tries 22 things an attacker or curious staff member might do, such as reading as an outsider, booking over the limit, editing their own tally or marking their own bid paid, and checks that each is allowed or denied as intended.

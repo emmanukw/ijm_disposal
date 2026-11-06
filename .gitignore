@@ -53,3 +53,7 @@ app.*.map.json
 
 # Local download bundle
 *.zip
+
+# Rules test deps
+tool/rules_test/node_modules/
+tool/rules_test/package-lock.json

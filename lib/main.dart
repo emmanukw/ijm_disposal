@@ -8,7 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'firebase_options.dart';
 import 'pages/admin_page.dart';
 import 'pages/home_page.dart';
-import 'services/repository.dart';
+import 'pages/login_page.dart';
+import 'services/session.dart';
 import 'theme.dart';
 
 Future<void> main() async {
@@ -20,14 +21,36 @@ Future<void> main() async {
     FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
     await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
   }
-  await Repository.instance.ensureSignedIn();
+  SessionController.instance; // start listening to sign-in state
   runApp(const DisposalApp());
 }
 
 final _router = GoRouter(routes: [
-  GoRoute(path: '/', builder: (_, _) => const HomePage()),
-  GoRoute(path: '/admin', builder: (_, _) => const AdminPage()),
+  GoRoute(path: '/', builder: (_, _) => const StaffGate(child: HomePage())),
+  GoRoute(path: '/admin', builder: (_, _) => const StaffGate(child: AdminPage())),
 ]);
+
+/// Shows [child] only to verified @ijm.org staff (or admins); otherwise the
+/// sign-in, verify-email or "staff only" screen.
+class StaffGate extends StatelessWidget {
+  final Widget child;
+  const StaffGate({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: SessionController.instance,
+        builder: (context, _) {
+          final s = SessionController.instance.value;
+          if (s.loading) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (!s.signedIn) return const LoginPage();
+          if (s.canUseSite) return child;
+          if (!s.allowedDomain) return NotAllowedPage(user: s.user!);
+          return VerifyEmailPage(user: s.user!);
+        },
+      );
+}
 
 class DisposalApp extends StatelessWidget {
   const DisposalApp({super.key});

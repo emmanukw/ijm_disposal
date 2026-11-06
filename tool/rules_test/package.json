@@ -1,0 +1,8 @@
+{
+  "name": "ijm-disposal-rules-test",
+  "private": true,
+  "type": "module",
+  "description": "Attacks firestore.rules on the local emulators. Start emulators, run ../seed_emulator.py, then: npm install && npm test",
+  "scripts": { "test": "node rules_test.mjs" },
+  "dependencies": { "firebase": "^12.0.0" }
+}

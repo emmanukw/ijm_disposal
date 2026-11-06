@@ -8,6 +8,7 @@ import '../models/auction_settings.dart';
 import '../models/bid.dart';
 import '../models/item.dart';
 import '../services/repository.dart';
+import '../services/session.dart';
 import '../theme.dart';
 import '../widgets/bid_dialog.dart';
 import '../widgets/bids_dashboard.dart';
@@ -194,7 +195,7 @@ class _HomePageState extends State<HomePage> {
                 item: item,
                 bookingOpen: open,
                 onBook: () async {
-                  final ok = await showBidDialog(context, item);
+                  final ok = await showBidDialog(context, item, settings);
                   if (ok == true && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Row(children: [
@@ -219,31 +220,88 @@ class _TopBar extends StatelessWidget {
   const _TopBar({required this.onAdmin});
 
   @override
-  Widget build(BuildContext context) => SliverAppBar(
-        pinned: true,
-        backgroundColor: Brand.navy,
-        foregroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        titleSpacing: 20,
-        title: Row(children: [
-          const LogoMark(),
-          const SizedBox(width: 12),
-          Text('$orgName Disposal',
+  Widget build(BuildContext context) {
+    final session = SessionController.instance.value;
+    final user = session.user;
+    final name = (user?.displayName?.isNotEmpty ?? false)
+        ? user!.displayName!
+        : (user?.email ?? '');
+    return SliverAppBar(
+      pinned: true,
+      backgroundColor: Brand.navy,
+      foregroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      titleSpacing: 20,
+      title: Row(children: [
+        const LogoMark(),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text('$orgName Disposal',
+              overflow: TextOverflow.ellipsis,
               style: Theme.of(context)
                   .appBarTheme
                   .titleTextStyle
                   ?.copyWith(color: Colors.white)),
-        ]),
-        actions: [
+        ),
+      ]),
+      actions: [
+        if (session.isAdmin)
           TextButton.icon(
             style: TextButton.styleFrom(foregroundColor: Colors.white70),
             onPressed: onAdmin,
             icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
             label: const Text('Admin'),
           ),
-          const SizedBox(width: 12),
-        ],
-      );
+        PopupMenuButton<String>(
+          tooltip: 'Account',
+          offset: const Offset(0, 48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          onSelected: (v) {
+            if (v == 'out') Repository.instance.signOut();
+          },
+          itemBuilder: (_) => [
+            PopupMenuItem(
+              enabled: false,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, color: Brand.navy)),
+                Text(user?.email ?? '',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF6B7A90))),
+              ]),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              value: 'out',
+              child: Row(children: [
+                Icon(Icons.logout, size: 18),
+                SizedBox(width: 10),
+                Text('Sign out'),
+              ]),
+            ),
+          ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: CircleAvatar(
+              radius: 17,
+              backgroundColor: Brand.teal,
+              foregroundColor: Colors.white,
+              child: Text(initials(name),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+      ],
+    );
+  }
+}
+
+String initials(String name) {
+  final base = name.contains('@') ? name.split('@').first.replaceAll(RegExp(r'[._-]'), ' ') : name;
+  final parts = base.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+  final s = parts.take(2).map((p) => p[0].toUpperCase()).join();
+  return s.isEmpty ? '?' : s;
 }
 
 /// Small rounded logo square used in headers.
@@ -292,6 +350,8 @@ class _Hero extends StatelessWidget {
           _HeroChip(Icons.inventory_2_outlined, '$available available items'),
           _HeroChip(Icons.layers_outlined, '$piecesLeft pieces left'),
           _HeroChip(Icons.gavel_rounded, '${bids.length} bids so far'),
+          if (settings.hasLimits)
+            _HeroChip(Icons.rule_rounded, settings.limitsText),
         ]),
       ],
     );

@@ -2,69 +2,118 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ------------------------------------------------------------ helpers
+
+    // Staff = signed in with a VERIFIED email on the IJM domain.
+    // (Change the domain here and in lib/config.dart together.)
+    function staffDomainRegex() { return '.*@ijm[.]org$'; }
+
     function signedIn() { return request.auth != null; }
+    function isStaff() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower().matches(staffDomainRegex());
+    }
     function isAdmin() {
       return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
+    function isMember() { return isStaff() || isAdmin(); }
+
     function settings() {
       return get(/databases/$(database)/documents/settings/auction).data;
     }
     function bookingOpen() {
       let s = settings();
       return request.time < s.endsAt
-        && (!('startsAt' in s) || s.startsAt == null || request.time >= s.startsAt);
+        && (s.get('startsAt', null) == null || request.time >= s.startsAt);
     }
+    function bidPath(bidId) { return /databases/$(database)/documents/bids/$(bidId); }
 
-    // Admin list: only readable by the user themself; managed in the console.
+    // ---------------------------------------------------------- collections
+
+    // Admin list: a user may only check their own entry; managed in the console.
     match /admins/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow write: if false;
     }
 
     match /settings/{doc} {
-      allow read: if true;
+      allow read: if isMember();
       allow write: if isAdmin();
     }
 
     match /items/{itemId} {
-      allow read: if true;
+      allow read: if isMember();
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || validBookingUpdate(itemId);
     }
 
-    // A bidder may only decrement `remaining` by the quantity of the bid
+    // A booking may only decrement `remaining` by the quantity of the bid
     // created in the same transaction (referenced via lastBidId).
     function validBookingUpdate(itemId) {
       let before = resource.data;
       let after = request.resource.data;
-      let bidPath = /databases/$(database)/documents/bids/$(after.lastBidId);
-      let bid = getAfter(bidPath).data;
-      return signedIn()
+      let bid = getAfter(bidPath(after.lastBidId)).data;
+      return isMember()
         && bookingOpen()
         && after.diff(before).affectedKeys().hasOnly(['remaining', 'lastBidId'])
-        && !exists(bidPath)
-        && existsAfter(bidPath)
+        && !exists(bidPath(after.lastBidId))
         && bid.itemId == itemId
         && after.remaining == before.remaining - bid.quantity
         && after.remaining >= 0;
     }
 
     match /bids/{bidId} {
-      allow read: if true;
-      allow create: if signedIn()
+      allow read: if isMember();
+      allow create: if isMember()
         && bookingOpen()
         && request.resource.data.keys().hasOnly(
-             ['itemId', 'itemName', 'bidderName', 'quantity', 'unitPrice', 'uid', 'createdAt'])
+             ['itemId', 'itemName', 'bidderName', 'email', 'quantity', 'unitPrice', 'uid', 'createdAt'])
         && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
         && request.resource.data.createdAt == request.time
         && request.resource.data.bidderName is string
         && request.resource.data.bidderName.size() >= 2
         && request.resource.data.bidderName.size() <= 80
         && request.resource.data.quantity is int
         && request.resource.data.quantity >= 1
-        && getAfter(/databases/$(database)/documents/items/$(request.resource.data.itemId)).data.lastBidId == bidId;
+        // the item and the bidder's tally must both be updated in the same transaction
+        && getAfter(/databases/$(database)/documents/items/$(request.resource.data.itemId)).data.lastBidId == bidId
+        && getAfter(/databases/$(database)/documents/bidders/$(request.auth.uid)).data.lastBidId == bidId;
       allow update: if false;
       allow delete: if isAdmin();
+    }
+
+    // Per-person running totals, used to enforce booking limits.
+    match /bidders/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow create, update: if isAdmin() || validTally(uid);
+      allow delete: if isAdmin();
+    }
+
+    function validTally(uid) {
+      let after = request.resource.data;
+      let before = resource == null ? {'total': 0, 'items': {}} : resource.data;
+      let bid = getAfter(bidPath(after.lastBidId)).data;
+      let s = settings();
+      let maxTotal = s.get('maxTotalPerPerson', 0);
+      let maxItem = s.get('maxPerItemPerPerson', 0);
+      let newCount = after.items.get(bid.itemId, 0);
+      return isMember()
+        && request.auth.uid == uid
+        && after.keys().hasOnly(['name', 'email', 'total', 'items', 'lastBidId'])
+        && !exists(bidPath(after.lastBidId))
+        && bid.uid == uid
+        && after.total == before.total + bid.quantity
+        && newCount == before.items.get(bid.itemId, 0) + bid.quantity
+        && after.items.diff(before.items).affectedKeys().hasOnly([bid.itemId])
+        && (maxTotal == 0 || after.total <= maxTotal)
+        && (maxItem == 0 || newCount <= maxItem);
+    }
+
+    // Payment / collection tracking: admins only.
+    match /bidStatus/{bidId} {
+      allow read, write: if isAdmin();
     }
   }
 }
