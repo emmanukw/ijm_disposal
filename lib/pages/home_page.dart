@@ -321,7 +321,7 @@ class _TopBar extends StatelessWidget {
           const SizedBox(width: 12),
           Flexible(
             child: Text(
-              appTitle,
+              brandName,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).appBarTheme.titleTextStyle
                   ?.copyWith(color: Colors.white),
@@ -412,12 +412,14 @@ String initials(String name) {
   return s.isEmpty ? '?' : s;
 }
 
-/// Small rounded logo square used in headers.
+/// Organisation logo used in headers. Shows [logoAsset] on a white rounded
+/// tile (so any logo colour works on the dark bar); falls back to a gavel icon
+/// if the logo file isn't there.
 class LogoMark extends StatelessWidget {
   final double size;
   const LogoMark({super.key, this.size = 34});
-  @override
-  Widget build(BuildContext context) => Container(
+
+  Widget _fallback() => Container(
     width: size,
     height: size,
     decoration: BoxDecoration(
@@ -425,6 +427,30 @@ class LogoMark extends StatelessWidget {
       borderRadius: BorderRadius.circular(size * 0.3),
     ),
     child: Icon(Icons.gavel_rounded, color: Colors.white, size: size * 0.55),
+  );
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: BoxConstraints(maxWidth: size * 4, minHeight: size),
+    child: Image.asset(
+      logoAsset,
+      height: size,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.medium,
+      errorBuilder: (_, _, _) => _fallback(),
+      frameBuilder: (context, child, frame, sync) {
+        if (frame == null && !sync) return SizedBox(width: size, height: size);
+        return Container(
+          height: size,
+          padding: EdgeInsets.all(size * 0.12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(size * 0.25),
+          ),
+          child: child,
+        );
+      },
+    ),
   );
 }
 

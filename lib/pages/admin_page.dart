@@ -165,7 +165,7 @@ class _AdminHomeState extends State<_AdminHome> {
             const SizedBox(width: 12),
             Flexible(
               child: Text(
-                wide ? '$appTitle · Admin' : 'Admin',
+                wide ? '$brandName · Admin' : 'Admin',
                 overflow: TextOverflow.ellipsis,
               ),
             ),
