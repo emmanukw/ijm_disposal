@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 
+import 'config.dart';
 import 'firebase_options.dart';
 import 'pages/admin_page.dart';
 import 'pages/home_page.dart';
@@ -58,7 +59,7 @@ class DisposalApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'IJM Disposal of Items',
+      title: appTitle,
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
       theme: buildTheme(),

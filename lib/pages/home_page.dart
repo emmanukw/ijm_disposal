@@ -236,7 +236,7 @@ class _TopBar extends StatelessWidget {
         const LogoMark(),
         const SizedBox(width: 12),
         Flexible(
-          child: Text('$orgName Disposal',
+          child: Text(appTitle,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context)
                   .appBarTheme

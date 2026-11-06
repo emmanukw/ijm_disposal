@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../config.dart';
+
 /// Global settings for the current disposal exercise (stored at settings/auction).
 class AuctionSettings {
   final String title;
@@ -20,7 +22,7 @@ class AuctionSettings {
     this.maxTotalPerPerson = 0,
   });
 
-  static const empty = AuctionSettings(title: 'IJM Disposal of Items');
+  static const empty = AuctionSettings(title: appTitle);
 
   bool isOpen(DateTime now) =>
       endsAt != null &&

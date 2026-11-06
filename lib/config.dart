@@ -2,6 +2,9 @@
 const currency = 'KES';
 const orgName = 'IJM';
 
+/// Name of the site (browser tab, header, default title).
+const appTitle = 'IJM Kenya Items Disposal';
+
 /// Only verified email addresses on this domain may use the site
 /// (admins listed in the `admins` collection are exempt).
 /// If you change it, also change `staffDomainRegex` in firestore.rules.

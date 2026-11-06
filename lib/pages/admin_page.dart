@@ -148,7 +148,7 @@ class _AdminHomeState extends State<_AdminHome> {
           const LogoMark(),
           const SizedBox(width: 12),
           Flexible(
-            child: Text(wide ? '$orgName Disposal · Admin' : 'Admin',
+            child: Text(wide ? '$appTitle · Admin' : 'Admin',
                 overflow: TextOverflow.ellipsis),
           ),
         ]),
